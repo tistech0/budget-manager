@@ -1,0 +1,84 @@
+services:
+  # PostgreSQL database - PERSISTENT DATA
+  database:
+    image: postgres:15-alpine
+    container_name: budget-db-dev
+    environment:
+      POSTGRES_DB: budget
+      POSTGRES_USER: budget_user
+      POSTGRES_PASSWORD: budget_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - budget-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budget_user -d budget"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend Quarkus with HOT RELOAD
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: budget-backend-dev
+    ports:
+      - "8080:8080"
+      - "5005:5005"  # Debug port
+    environment:
+      - QUARKUS_PROFILE=dev
+      - QUARKUS_DATASOURCE_DB_KIND=postgresql
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://database:5432/budget
+      - QUARKUS_DATASOURCE_USERNAME=budget_user
+      - QUARKUS_DATASOURCE_PASSWORD=budget_pass
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
+      - QUARKUS_HIBERNATE_ORM_LOG_SQL=true
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./backend/pom.xml:/app/pom.xml:ro
+      - maven_cache:/root/.m2
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - budget-network
+    command: ./mvnw quarkus:dev -Dquarkus.http.host=0.0.0.0 -Ddebug=5005
+
+  # Frontend Vue with HOT RELOAD
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: budget-frontend-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    volumes:
+      - ./frontend/src:/app/src:ro
+      - ./frontend/public:/app/public:ro
+      - ./frontend/index.html:/app/index.html:ro
+      - ./frontend/vite.config.ts:/app/vite.config.ts:ro
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+      - ./frontend/package.json:/app/package.json:ro
+      - node_modules_cache:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - budget-network
+    command: npm run dev -- --host 0.0.0.0 --port 8000
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  maven_cache:
+    driver: local
+  node_modules_cache:
+    driver: local
+
+networks:
+  budget-network:
+    driver: bridge
