@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: budget-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-budget}
+      POSTGRES_USER: ${POSTGRES_USER:-budget_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-budget_pass}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - budget-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-budget_user} -d ${POSTGRES_DB:-budget}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Backend Quarkus Application
+  backend:
+    image: tistech0/budget-manager-backend:latest
+    container_name: budget-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      # Quarkus Profile
+      - QUARKUS_PROFILE=prod
+
+      # Database Configuration
+      - QUARKUS_DATASOURCE_DB_KIND=postgresql
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://database:5432/${POSTGRES_DB:-budget}
+      - QUARKUS_DATASOURCE_USERNAME=${POSTGRES_USER:-budget_user}
+      - QUARKUS_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-budget_pass}
+
+      # Hibernate Configuration
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
+      - QUARKUS_HIBERNATE_ORM_LOG_SQL=false
+
+      # HTTP Configuration
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_HTTP_HOST=0.0.0.0
+
+      # CORS Configuration (allow frontend)
+      - QUARKUS_HTTP_CORS=true
+      - QUARKUS_HTTP_CORS_ORIGINS=http://localhost:${FRONTEND_PORT:-3000}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - budget-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (Nginx + Vue.js SPA)
+  frontend:
+    image: tistech0/budget-manager-frontend:latest
+    container_name: budget-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - budget-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Optional: Traefik labels (uncomment if using Traefik)
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.budget-frontend.rule=Host(`budget.yourdomain.com`)"
+    #   - "traefik.http.routers.budget-frontend.entrypoints=websecure"
+    #   - "traefik.http.routers.budget-frontend.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.budget-frontend.loadbalancer.server.port=80"
+
+volumes:
+  postgres_data:
+    driver: local
+    # Optional: Use a specific host path for backups
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /path/to/your/homelab/data/budget-manager/postgres
+
+networks:
+  budget-network:
+    driver: bridge
