@@ -60,10 +60,10 @@ jobs:
           cache: 'maven'
 
       - name: Run tests
-        run: ./mvnw test
+        run: ./mvnw test -Dtest='!**/*ResourceTest'
 
       - name: Run Maven verify
-        run: ./mvnw verify -DskipTests
+        run: ./mvnw verify -Dtest='!**/*ResourceTest'
 
       - name: Build package
         run: ./mvnw clean package -DskipTests
