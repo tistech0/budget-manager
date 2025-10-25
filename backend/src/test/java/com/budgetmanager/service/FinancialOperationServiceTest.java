@@ -32,6 +32,9 @@ class FinancialOperationServiceTest {
     FinancialOperationService financialOps;
 
     @Inject
+    ObjectifService objectifService;
+
+    @Inject
     EntityManager entityManager;
 
     private User testUser;
@@ -42,8 +45,12 @@ class FinancialOperationServiceTest {
     private ObjectifRepartition testRepartition;
 
     @BeforeEach
-    @TestTransaction
     void setUp() {
+        // Setup is now done in each test method within the @TestTransaction context
+    }
+
+
+    private void setupTestData() {
         // Clean database - respecting foreign key constraints
         TransfertObjectif.deleteAll();  // Must delete before Transaction
         Transaction.deleteAll();  // Must delete before Compte
@@ -86,6 +93,10 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitCompte_ShouldReduceBalance() {
+        setupTestData();
+
+        setupTestData();
+
         // Given: Compte with balance 1000
         BigDecimal initialBalance = testCompte1.getSoldeTotal();
         BigDecimal debitAmount = new BigDecimal("250.00");
@@ -104,6 +115,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitCompte_ShouldRoundToTwoDecimals() {
+        setupTestData();
+
         // Given: Compte with balance
         testCompte1.setSoldeTotal(new BigDecimal("1000.00"));
 
@@ -117,6 +130,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitCompte_ShouldAllowNegativeBalance() {
+        setupTestData();
+
         // Given: Compte with small balance
         testCompte1.setSoldeTotal(new BigDecimal("100.00"));
 
@@ -130,6 +145,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitCompte_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Debit with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -141,6 +158,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitCompte_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Debit with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -154,6 +173,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditCompte_ShouldIncreaseBalance() {
+        setupTestData();
+
         // Given: Compte with balance 1000
         BigDecimal initialBalance = testCompte1.getSoldeTotal();
         BigDecimal creditAmount = new BigDecimal("250.00");
@@ -172,6 +193,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditCompte_ShouldRoundToTwoDecimals() {
+        setupTestData();
+
         // Given: Compte with balance
         testCompte1.setSoldeTotal(new BigDecimal("1000.00"));
 
@@ -185,6 +208,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditCompte_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Credit with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -196,6 +221,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditCompte_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Credit with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -209,6 +236,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferBetweenComptes_ShouldTransferMoney() {
+        setupTestData();
+
         // Given: Compte1 with 1000, Compte2 with 500
         BigDecimal initialBalance1 = testCompte1.getSoldeTotal(); // 1000
         BigDecimal initialBalance2 = testCompte2.getSoldeTotal(); // 500
@@ -233,6 +262,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferBetweenComptes_ShouldMaintainTotalBalance() {
+        setupTestData();
+
         // Given: Two comptes
         BigDecimal totalBefore = testCompte1.getSoldeTotal().add(testCompte2.getSoldeTotal());
 
@@ -247,6 +278,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferBetweenComptes_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Transfer with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -258,6 +291,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferBetweenComptes_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Transfer with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -273,6 +308,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitObjectifRepartition_ShouldReduceAmount() {
+        setupTestData();
+
         // Given: Repartition with 100
         BigDecimal initialAmount = testRepartition.getMontantActuel();
         BigDecimal debitAmount = new BigDecimal("30.00");
@@ -291,6 +328,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitObjectifRepartition_ShouldRoundToTwoDecimals() {
+        setupTestData();
+
         // Given: Repartition with amount
         testRepartition.setMontantActuel(new BigDecimal("100.00"));
 
@@ -304,6 +343,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitObjectifRepartition_ShouldThrowException_WhenInsufficientFunds() {
+        setupTestData();
+
         // Given: Repartition with 100
         testRepartition.setMontantActuel(new BigDecimal("100.00"));
 
@@ -318,6 +359,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitObjectifRepartition_ShouldAllowDebitToExactlyZero() {
+        setupTestData();
+
         // Given: Repartition with 100
         testRepartition.setMontantActuel(new BigDecimal("100.00"));
 
@@ -331,6 +374,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitObjectifRepartition_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Debit with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -342,6 +387,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void debitObjectifRepartition_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Debit with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -357,6 +404,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditObjectifRepartition_ShouldIncreaseAmount() {
+        setupTestData();
+
         // Given: Repartition with 100
         BigDecimal initialAmount = testRepartition.getMontantActuel();
         BigDecimal creditAmount = new BigDecimal("50.00");
@@ -375,6 +424,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditObjectifRepartition_ShouldRoundToTwoDecimals() {
+        setupTestData();
+
         // Given: Repartition with amount
         testRepartition.setMontantActuel(new BigDecimal("100.00"));
 
@@ -388,6 +439,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditObjectifRepartition_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Credit with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -399,6 +452,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void creditObjectifRepartition_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Credit with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -414,6 +469,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferToObjectif_ShouldTransferMoneyFromCompteToRepartition() {
+        setupTestData();
+
         // Given: Compte with 1000, Repartition with 100
         BigDecimal initialCompteBalance = testCompte1.getSoldeTotal();
         BigDecimal initialRepartitionAmount = testRepartition.getMontantActuel();
@@ -438,6 +495,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferToObjectif_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Transfer with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -449,6 +508,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferToObjectif_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Transfer with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -464,6 +525,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferFromObjectif_ShouldTransferMoneyFromRepartitionToCompte() {
+        setupTestData();
+
         // Given: Repartition with 100, Compte with 1000
         BigDecimal initialRepartitionAmount = testRepartition.getMontantActuel();
         BigDecimal initialCompteBalance = testCompte1.getSoldeTotal();
@@ -488,6 +551,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferFromObjectif_ShouldThrowException_WhenInsufficientFundsInRepartition() {
+        setupTestData();
+
         // Given: Repartition with only 100
         testRepartition.setMontantActuel(new BigDecimal("100.00"));
 
@@ -504,6 +569,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferFromObjectif_ShouldThrowException_WhenAmountIsZero() {
+        setupTestData();
+
         // When/Then: Transfer with zero amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -515,6 +582,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void transferFromObjectif_ShouldThrowException_WhenAmountIsNegative() {
+        setupTestData();
+
         // When/Then: Transfer with negative amount should throw exception
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
@@ -530,21 +599,19 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void calculateObjectifTotal_ShouldSumAllRepartitions() {
+        setupTestData();
+
         // Given: Objectif with multiple repartitions
         ObjectifRepartition rep2 = new ObjectifRepartition(testObjectif, testCompte2,
             new BigDecimal("200.00"));
         rep2.setOrdre(2);
         rep2.persist();
 
-        // Flush and reload with JOIN FETCH to load repartitions
-        entityManager.flush();
-        Objectif objectifWithReps = entityManager.createQuery(
-            "SELECT o FROM Objectif o LEFT JOIN FETCH o.repartitions WHERE o.id = :id", Objectif.class)
-            .setParameter("id", testObjectif.getId())
-            .getSingleResult();
+        // Load repartitions using ObjectifService
+        objectifService.enrichirObjectif(testObjectif);
 
         // When: Calculate total
-        BigDecimal total = financialOps.calculateObjectifTotal(objectifWithReps);
+        BigDecimal total = financialOps.calculateObjectifTotal(testObjectif);
 
         // Then: Should sum 100 + 200 = 300
         assertEquals(new BigDecimal("300.00"), total);
@@ -553,20 +620,18 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void calculateObjectifTotal_ShouldReturnZero_WhenNoRepartitions() {
+        setupTestData();
+
         // Given: Objectif with no repartitions
         Objectif emptyObjectif = new Objectif(testUser, "Empty",
             new BigDecimal("1000.00"), PrioriteObjectif.BASSE, TypeObjectif.DIVERS);
         emptyObjectif.persist();
 
-        // Flush and reload with JOIN FETCH to load repartitions (empty collection)
-        entityManager.flush();
-        Objectif objectifWithReps = entityManager.createQuery(
-            "SELECT o FROM Objectif o LEFT JOIN FETCH o.repartitions WHERE o.id = :id", Objectif.class)
-            .setParameter("id", emptyObjectif.getId())
-            .getSingleResult();
+        // Load repartitions using ObjectifService (will be empty list)
+        objectifService.enrichirObjectif(emptyObjectif);
 
         // When: Calculate total
-        BigDecimal total = financialOps.calculateObjectifTotal(objectifWithReps);
+        BigDecimal total = financialOps.calculateObjectifTotal(emptyObjectif);
 
         // Then: Should be zero
         assertEquals(MoneyConstants.ZERO, total);
@@ -575,19 +640,17 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void calculateObjectifProgress_ShouldCalculatePercentage() {
+        setupTestData();
+
         // Given: Objectif with target 10000 and current 2500
         testObjectif.setMontantCible(new BigDecimal("10000.00"));
         testRepartition.setMontantActuel(new BigDecimal("2500.00"));
 
-        // Flush and reload with JOIN FETCH to load repartitions
-        entityManager.flush();
-        Objectif objectifWithReps = entityManager.createQuery(
-            "SELECT o FROM Objectif o LEFT JOIN FETCH o.repartitions WHERE o.id = :id", Objectif.class)
-            .setParameter("id", testObjectif.getId())
-            .getSingleResult();
+        // Load repartitions using ObjectifService
+        objectifService.enrichirObjectif(testObjectif);
 
         // When: Calculate progress
-        BigDecimal progress = financialOps.calculateObjectifProgress(objectifWithReps);
+        BigDecimal progress = financialOps.calculateObjectifProgress(testObjectif);
 
         // Then: Should be 25%
         assertEquals(new BigDecimal("25.00"), progress);
@@ -596,6 +659,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void calculateObjectifProgress_ShouldReturnZero_WhenTargetIsZero() {
+        setupTestData();
+
         // Given: Objectif with zero target
         testObjectif.setMontantCible(BigDecimal.ZERO);
 
@@ -609,19 +674,17 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void calculateObjectifProgress_ShouldExceed100_WhenOverfunded() {
+        setupTestData();
+
         // Given: Objectif with target 1000 but current 1500
         testObjectif.setMontantCible(new BigDecimal("1000.00"));
         testRepartition.setMontantActuel(new BigDecimal("1500.00"));
 
-        // Flush and reload with JOIN FETCH to load repartitions
-        entityManager.flush();
-        Objectif objectifWithReps = entityManager.createQuery(
-            "SELECT o FROM Objectif o LEFT JOIN FETCH o.repartitions WHERE o.id = :id", Objectif.class)
-            .setParameter("id", testObjectif.getId())
-            .getSingleResult();
+        // Load repartitions using ObjectifService
+        objectifService.enrichirObjectif(testObjectif);
 
         // When: Calculate progress
-        BigDecimal progress = financialOps.calculateObjectifProgress(objectifWithReps);
+        BigDecimal progress = financialOps.calculateObjectifProgress(testObjectif);
 
         // Then: Should be 150%
         assertEquals(new BigDecimal("150.00"), progress);
@@ -630,6 +693,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void hasSufficientFunds_ShouldReturnTrue_WhenFundsAreSufficient() {
+        setupTestData();
+
         // Given: Compte with 1000
         testCompte1.setSoldeTotal(new BigDecimal("1000.00"));
 
@@ -640,6 +705,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void hasSufficientFunds_ShouldReturnTrue_WhenAmountIsExact() {
+        setupTestData();
+
         // Given: Compte with 1000
         testCompte1.setSoldeTotal(new BigDecimal("1000.00"));
 
@@ -650,6 +717,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void hasSufficientFunds_ShouldReturnFalse_WhenFundsAreInsufficient() {
+        setupTestData();
+
         // Given: Compte with 100
         testCompte1.setSoldeTotal(new BigDecimal("100.00"));
 
@@ -660,6 +729,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void hasSufficientFunds_ShouldReturnTrue_WhenCheckingZero() {
+        setupTestData();
+
         // Given: Compte with any balance
         testCompte1.setSoldeTotal(new BigDecimal("100.00"));
 
@@ -672,6 +743,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void moneyOperations_ShouldRoundConsistently() {
+        setupTestData();
+
         // Given: Compte with precise starting balance
         testCompte1.setSoldeTotal(new BigDecimal("1000.00"));
 
@@ -686,6 +759,8 @@ class FinancialOperationServiceTest {
     @Test
     @TestTransaction
     void moneyOperations_ShouldHandleManySmallOperations() {
+        setupTestData();
+
         // Given: Compte with balance
         testCompte1.setSoldeTotal(new BigDecimal("100.00"));
 

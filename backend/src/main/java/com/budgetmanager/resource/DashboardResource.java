@@ -2,7 +2,6 @@ package com.budgetmanager.resource;
 
 import com.budgetmanager.dto.CompteResponse;
 import com.budgetmanager.dto.DashboardResponse;
-import com.budgetmanager.dto.ErrorResponse;
 import com.budgetmanager.dto.ObjectifResponse;
 import com.budgetmanager.dto.UserResponse;
 import com.budgetmanager.entity.*;
@@ -15,11 +14,9 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.hibernate.Hibernate;
 import org.jboss.logging.Logger;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
