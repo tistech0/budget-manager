@@ -2,7 +2,7 @@
   <div class="budget-gauges" role="region" aria-label="Jauges budgétaires">
     <article
       class="gauge-card glass-card"
-      v-for="(gauge, index) in gauges"
+      v-for="(gauge, index) in computedGauges"
       :key="gauge.label"
       role="article"
       :aria-labelledby="`gauge-label-${index}`"
@@ -97,8 +97,8 @@ function getStatusClass(gauge: BudgetGauge): string {
   return 'low'
 }
 
-// Use computed gauges in template
-const gauges = gaugesWithComputed
+// Export computed gauges for template
+const computedGauges = gaugesWithComputed
 </script>
 
 <style scoped>

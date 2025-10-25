@@ -291,7 +291,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
       // 4. Créer les objectifs avec les repartitions mappées aux vrais IDs
       for (const objectif of userObjectifs.value) {
         // Si l'objectif a des répartitions, remplacer les temp IDs par les vrais IDs
-        let mappedObjectif = { ...objectif }
+        const mappedObjectif = { ...objectif }
 
         if (objectif.repartitions && objectif.repartitions.length > 0) {
           mappedObjectif.repartitions = objectif.repartitions.map(rep => ({
