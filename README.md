@@ -1,5 +1,8 @@
 # Budget Manager v2.0
 
+[![CI - Pull Request](https://github.com/tistech0/budget-manager-v2/actions/workflows/ci-pr.yml/badge.svg)](https://github.com/tistech0/budget-manager-v2/actions/workflows/ci-pr.yml)
+[![CI/CD - Main Branch](https://github.com/tistech0/budget-manager-v2/actions/workflows/ci-main.yml/badge.svg)](https://github.com/tistech0/budget-manager-v2/actions/workflows/ci-main.yml)
+
 A modern personal budget management application with multi-account savings objectives allocation, transaction tracking, and intelligent budget distribution.
 
 ## Features
@@ -361,9 +364,108 @@ npm run test:unit              # Vitest unit tests
 npm run test:e2e              # Playwright E2E tests
 ```
 
+## CI/CD Pipeline
+
+### Overview
+
+Automated GitHub Actions workflows for continuous integration and deployment:
+
+- **Pull Requests** - Automated validation before merge
+- **Main Branch** - Automated Docker image builds and deployment to Docker Hub
+
+### Pull Request Workflow
+
+Triggered on every PR to `main` or `develop` branches.
+
+**Frontend Checks:**
+- ✅ ESLint linting
+- ✅ TypeScript type checking
+- ✅ Unit tests (Vitest)
+- ✅ Production build validation
+
+**Backend Checks:**
+- ✅ Maven tests
+- ✅ Maven verify
+- ✅ Package build
+
+All checks must pass before merge is allowed.
+
+### Main Branch Workflow
+
+Triggered on push to `main` branch (after PR merge).
+
+**Steps:**
+1. Run all validation checks (same as PR)
+2. Build Docker images:
+   - `tistech0/budget-manager-frontend`
+   - `tistech0/budget-manager-backend`
+3. Tag images with:
+   - `latest` - Always points to latest main branch
+   - `sha-<commit>` - Specific commit version (e.g., `sha-abc1234`)
+4. Push images to Docker Hub
+
+### Docker Images
+
+Pull production images from Docker Hub:
+
+```bash
+# Frontend (Nginx + Vue production build)
+docker pull tistech0/budget-manager-frontend:latest
+docker pull tistech0/budget-manager-frontend:sha-abc1234
+
+# Backend (OpenJDK 21 + Quarkus)
+docker pull tistech0/budget-manager-backend:latest
+docker pull tistech0/budget-manager-backend:sha-abc1234
+
+# Run images
+docker run -p 80:80 tistech0/budget-manager-frontend:latest
+docker run -p 8080:8080 tistech0/budget-manager-backend:latest
+```
+
+### Setup CI/CD
+
+**Required GitHub Secrets:**
+
+Add these in **Settings → Secrets and variables → Actions**:
+
+1. `DOCKERHUB_USERNAME` - Your Docker Hub username (tistech0)
+2. `DOCKERHUB_TOKEN` - Docker Hub Personal Access Token
+   - Create at: https://hub.docker.com/settings/security
+   - Permissions: Read, Write, Delete
+
+**Workflow Files:**
+- `.github/workflows/ci-pr.yml` - Pull request validation
+- `.github/workflows/ci-main.yml` - Main branch deployment
+
+### Monitoring CI/CD
+
+- **GitHub Actions Tab** - View workflow runs and logs
+- **Pull Request Checks** - See status of all validations
+- **Docker Hub** - Verify published images
+
 ## Production Deployment
 
-### Using Docker Compose
+### Option 1: Using Pre-built Docker Images (Recommended)
+
+Pull and run the latest production images from Docker Hub:
+
+```bash
+# Pull latest images
+docker pull tistech0/budget-manager-frontend:latest
+docker pull tistech0/budget-manager-backend:latest
+
+# Run with Docker Compose (create docker-compose.yml)
+# Or run individually:
+docker run -d -p 80:80 tistech0/budget-manager-frontend:latest
+docker run -d -p 8080:8080 \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://your-db:5432/budget \
+  -e QUARKUS_DATASOURCE_USERNAME=budget_user \
+  -e QUARKUS_DATASOURCE_PASSWORD=your_password \
+  tistech0/budget-manager-backend:latest
+```
+
+### Option 2: Build from Source with Docker Compose
+
 ```bash
 # Build and start production services
 docker-compose -f docker-compose.prod.yml up --build -d

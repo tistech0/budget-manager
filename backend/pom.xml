@@ -163,6 +163,10 @@
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
             <maven.home>${maven.home}</maven.home>
           </systemPropertyVariables>
+          <!-- Exclude integration tests from unit test phase -->
+          <excludes>
+            <exclude>**/*IT.java</exclude>
+          </excludes>
         </configuration>
       </plugin>
       <plugin>

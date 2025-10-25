@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import UserProfileView from '../UserProfileView.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { apiService } from '@/services/api'
+import type { UserProfile } from '@/types'
 
 // Mock router and API
 vi.mock('vue-router', () => ({
@@ -63,13 +64,13 @@ describe('UserProfileView', () => {
       salaireValide: false,
       timestamp: new Date().toISOString()
     }
-    const wrapper = mount(UserProfileView, mountOptions)
+    mount(UserProfileView, mountOptions)
     expect(store.user?.prenom).toBe('John')
     expect(store.user?.nom).toBe('Doe')
   })
 
   it('should populate form with user data', async () => {
-    const user = {
+    const user: UserProfile = {
       id: '1',
       nom: 'Doe',
       prenom: 'John',
@@ -81,7 +82,7 @@ describe('UserProfileView', () => {
       pourcentageEpargne: 20
     }
 
-    vi.mocked(apiService.getUserProfile).mockResolvedValue(user as any)
+    vi.mocked(apiService.getUserProfile).mockResolvedValue(user)
 
     const wrapper = mount(UserProfileView, mountOptions)
     await flushPromises()
@@ -94,7 +95,7 @@ describe('UserProfileView', () => {
   })
 
   it('should handle form submission', async () => {
-    const user = {
+    const user: UserProfile = {
       id: '1',
       nom: 'Doe',
       prenom: 'John',
@@ -105,11 +106,11 @@ describe('UserProfileView', () => {
       pourcentageEpargne: 20
     }
 
-    vi.mocked(apiService.getUserProfile).mockResolvedValue(user as any)
+    vi.mocked(apiService.getUserProfile).mockResolvedValue(user)
     vi.mocked(apiService.updateUserProfile).mockResolvedValue({
       ...user,
       nom: 'Updated'
-    } as any)
+    })
 
     const wrapper = mount(UserProfileView, mountOptions)
     await flushPromises()
@@ -142,7 +143,7 @@ describe('UserProfileView', () => {
       salaireValide: false,
       timestamp: new Date().toISOString()
     }
-    const wrapper = mount(UserProfileView, mountOptions)
+    mount(UserProfileView, mountOptions)
 
     expect(store.user?.pourcentageChargesFixes).toBe(50)
     expect(store.user?.pourcentageDepensesVariables).toBe(30)
@@ -150,7 +151,7 @@ describe('UserProfileView', () => {
   })
 
   it('should track unsaved changes', async () => {
-    const user = {
+    const user: UserProfile = {
       id: '1',
       nom: 'Doe',
       prenom: 'John',
@@ -161,7 +162,7 @@ describe('UserProfileView', () => {
       pourcentageEpargne: 20
     }
 
-    vi.mocked(apiService.getUserProfile).mockResolvedValue(user as any)
+    vi.mocked(apiService.getUserProfile).mockResolvedValue(user)
 
     const wrapper = mount(UserProfileView, mountOptions)
     await flushPromises()
@@ -176,7 +177,7 @@ describe('UserProfileView', () => {
   })
 
   it('should have handleCancel method', async () => {
-    const user = {
+    const user: UserProfile = {
       id: '1',
       nom: 'Doe',
       prenom: 'John',
@@ -187,7 +188,7 @@ describe('UserProfileView', () => {
       pourcentageEpargne: 20
     }
 
-    vi.mocked(apiService.getUserProfile).mockResolvedValue(user as any)
+    vi.mocked(apiService.getUserProfile).mockResolvedValue(user)
 
     const wrapper = mount(UserProfileView, mountOptions)
     await flushPromises()
@@ -213,7 +214,7 @@ describe('UserProfileView', () => {
       salaireValide: false,
       timestamp: new Date().toISOString()
     }
-    const wrapper = mount(UserProfileView, mountOptions)
+    mount(UserProfileView, mountOptions)
     expect(store.user?.salaireMensuelNet).toBe(3500.50)
   })
 })

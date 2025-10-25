@@ -13,7 +13,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Path("/api/transferts/comptes")
 @Produces(MediaType.APPLICATION_JSON)

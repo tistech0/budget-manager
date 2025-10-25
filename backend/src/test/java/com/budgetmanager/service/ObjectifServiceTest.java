@@ -33,8 +33,12 @@ class ObjectifServiceTest {
     private Objectif testObjectif;
 
     @BeforeEach
-    @TestTransaction
     void setUp() {
+        // Setup is now done in each test method within the @TestTransaction context
+        // This ensures proper transaction management and entity state
+    }
+
+    private void setupTestData() {
         // Nettoyer la base de données
         TransfertObjectif.deleteAll();
         Transaction.deleteAll();
@@ -66,11 +70,15 @@ class ObjectifServiceTest {
             new BigDecimal("10000.00"), PrioriteObjectif.HAUTE, TypeObjectif.SECURITE);
         testObjectif.setCouleur("#4CAF50");
         testObjectif.persist();
+
+        entityManager.flush();
     }
 
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithNoRepartitions() {
+        setupTestData();
+
         // Quand: enrichir un objectif sans répartitions
         objectifService.enrichirObjectif(testObjectif);
 
@@ -84,6 +92,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithSingleRepartition() {
+        setupTestData();
+
         // Etant donné: une répartition sur un compte
         ObjectifRepartition rep = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("2500.00"));
@@ -103,6 +113,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithMultipleRepartitions() {
+        setupTestData();
+
         // Etant donné: deux répartitions sur deux comptes
         ObjectifRepartition rep1 = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("2500.00"));
@@ -127,6 +139,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithFullyFundedObjectif() {
+        setupTestData();
+
         // Etant donné: répartitions totalisant 100% de l'objectif
         ObjectifRepartition rep = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("10000.00"));
@@ -144,6 +158,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithOverfundedObjectif() {
+        setupTestData();
+
         // Etant donné: répartitions dépassant 100% de l'objectif
         ObjectifRepartition rep = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("15000.00"));
@@ -161,6 +177,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithZeroTarget() {
+        setupTestData();
+
         // Etant donné: un objectif avec montant cible = 0
         Objectif zeroTargetObjectif = new Objectif(testUser, "Objectif Zero",
             BigDecimal.ZERO, PrioriteObjectif.BASSE, TypeObjectif.DIVERS);
@@ -182,6 +200,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_RepartitionsOrderedCorrectly() {
+        setupTestData();
+
         // Etant donné: trois répartitions avec des ordres spécifiques
         ObjectifRepartition rep3 = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("1000.00"));
@@ -215,6 +235,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_WithDecimalAmounts() {
+        setupTestData();
+
         // Etant donné: répartitions avec montants décimaux
         ObjectifRepartition rep1 = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("2490.50"));
@@ -237,6 +259,8 @@ class ObjectifServiceTest {
     @Test
     @TestTransaction
     void testEnrichirObjectif_RepartitionsLoadComptes() {
+        setupTestData();
+
         // Etant donné: une répartition
         ObjectifRepartition rep = new ObjectifRepartition(testObjectif, testCompte1,
             new BigDecimal("2500.00"));

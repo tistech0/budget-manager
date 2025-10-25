@@ -30,7 +30,7 @@ class UserResourceTest {
                 .when().get(API_BASE + "/user/profile")
                 .then()
                 .statusCode(404)
-                .body("error", equalTo("Aucun profil utilisateur trouvé"));
+                .body("message", equalTo("Aucun profil utilisateur trouvé"));
     }
 
     @Test
