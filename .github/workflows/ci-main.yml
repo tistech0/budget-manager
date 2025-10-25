@@ -59,11 +59,14 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Run tests
-        run: ./mvnw test -Dtest='!**/*ResourceTest'
+      - name: Run tests (excluding resource integration tests)
+        run: |
+          ./mvnw test \
+            -Dtest='!ObjectifResourceTest,!TransactionResourceTest,!UserResourceTest,!CompteResourceTest' \
+            -Dsurefire.failIfNoSpecifiedTests=false
 
       - name: Run Maven verify
-        run: ./mvnw verify -Dtest='!**/*ResourceTest'
+        run: ./mvnw verify -DskipTests
 
       - name: Build package
         run: ./mvnw clean package -DskipTests
