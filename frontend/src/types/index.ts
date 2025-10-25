@@ -286,13 +286,14 @@ export interface UpdateObjectifRequest {
 export interface CreateChargeFixeRequest {
   compteId: string
   nom: string
-  description?: string
+  description?: string | undefined
   montant: number
   categorie: TypeTransaction
   jourPrelevement: number
   frequence: FrequenceCharge
   dateDebut: string
-  dateFin?: string
+  dateFin?: string | undefined
+  actif?: boolean | undefined
 }
 
 /**

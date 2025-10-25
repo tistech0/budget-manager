@@ -566,12 +566,13 @@ const editingCharge = ref<ChargeFixe | null>(null)
 const chargeFormData = ref<CreateChargeFixeRequest>({
   compteId: '',
   nom: '',
-  description: '',
+  description: undefined,
   montant: 0,
   categorie: 'AUTRE' as TypeTransaction,
   frequence: 'MENSUELLE' as FrequenceCharge,
   jourPrelevement: 1,
   dateDebut: new Date().toISOString().split('T')[0],
+  dateFin: undefined,
   actif: true
 })
 
@@ -625,13 +626,13 @@ const editCharge = (charge: ChargeFixe) => {
   chargeFormData.value = {
     compteId: charge.compte.id,
     nom: charge.nom,
-    description: charge.description || '',
+    description: charge.description || undefined,
     montant: charge.montant,
     categorie: charge.categorie,
     frequence: charge.frequence,
     jourPrelevement: charge.jourPrelevement,
     dateDebut: charge.dateDebut,
-    dateFin: charge.dateFin,
+    dateFin: charge.dateFin || undefined,
     actif: charge.actif
   }
   showAddChargeModal.value = true
@@ -676,12 +677,13 @@ const closeChargeModal = () => {
   chargeFormData.value = {
     compteId: '',
     nom: '',
-    description: '',
+    description: undefined,
     montant: 0,
     categorie: 'AUTRE' as TypeTransaction,
     frequence: 'MENSUELLE' as FrequenceCharge,
     jourPrelevement: 1,
     dateDebut: new Date().toISOString().split('T')[0],
+    dateFin: undefined,
     actif: true
   }
 }

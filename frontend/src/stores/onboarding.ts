@@ -24,10 +24,9 @@ export interface AccountFormData extends Omit<CreateCompteRequest, 'banqueId'> {
   }
 
 export interface ChargeFixeFormData extends Omit<CreateChargeFixeRequest, 'compteId'> {
-  id?: string
-  compte?: AccountFormData
-  tempId?: string
-  actif?: boolean
+  id?: string | undefined
+  compte?: AccountFormData | undefined
+  tempId?: string | undefined
 }
 
 export interface ChargeFixeInput extends CreateChargeFixeRequest {
