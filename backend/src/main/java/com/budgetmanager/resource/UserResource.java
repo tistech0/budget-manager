@@ -24,10 +24,31 @@ public class UserResource {
     UserContext userContext;
 
     @GET
+    @Path("/exists")
+    public Response userExists() {
+        long userCount = User.count();
+        boolean exists = userCount > 0;
+        return Response.ok()
+                .entity(new UserExistsResponse(exists))
+                .build();
+    }
+
+    @GET
     @Path("/profile")
     public UserResponse getProfile() {
         User user = userContext.getCurrentUser();
         return UserResponse.fromEntity(user);
+    }
+
+    /**
+     * Simple response class for user existence check
+     */
+    public static class UserExistsResponse {
+        public boolean exists;
+
+        public UserExistsResponse(boolean exists) {
+            this.exists = exists;
+        }
     }
 
     @POST

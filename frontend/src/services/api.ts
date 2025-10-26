@@ -113,7 +113,21 @@ export const apiService = {
   // ===============================================
   // USER RESOURCE
   // ===============================================
-  
+
+  /**
+   * GET /api/user/exists
+   * Check if a user exists in the database (mono-user app)
+   */
+  async checkUserExists(): Promise<boolean> {
+    try {
+      const response = await apiClient.get<{ exists: boolean }>('/user/exists')
+      return response.data.exists
+    } catch (error) {
+      logger.error('Error checking user existence:', error)
+      return false
+    }
+  },
+
   /**
    * GET /api/user/profile
    * Récupérer le profil utilisateur

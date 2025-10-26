@@ -391,6 +391,31 @@ export const useOnboardingStore = defineStore('onboarding', () => {
         localStorage.removeItem('onboarding-completed')
         localStorage.removeItem('user-id')
       }
+    } else {
+      // If localStorage is empty, check if a user exists in the backend (mono-user app)
+      // This handles the case of private/incognito mode where localStorage is cleared
+      try {
+        const userExists = await apiService.checkUserExists()
+
+        if (userExists) {
+          logger.info('User exists in backend but not in localStorage, auto-logging in...')
+
+          // Fetch the user profile
+          currentUser.value = await apiService.getUserProfile()
+
+          // Mark as completed and persist to localStorage
+          isCompleted.value = true
+          localStorage.setItem('onboarding-completed', 'true')
+          localStorage.setItem('user-id', currentUser.value.id)
+
+          logger.log('Auto-login successful:', currentUser.value)
+        } else {
+          logger.info('No user exists in backend, onboarding required')
+        }
+      } catch (error) {
+        logger.error('Failed to check user existence or auto-login:', error)
+        // Don't set error state, just let onboarding proceed normally
+      }
     }
   }
 
