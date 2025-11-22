@@ -3,7 +3,7 @@
     <!-- Upload Section -->
     <div v-if="!parsedTransactions.length" class="upload-section glass-card">
       <h3>📄 Importer un Relevé Bancaire</h3>
-      <p class="upload-desc">Téléchargez votre relevé bancaire PDF et nous extrairons automatiquement les transactions</p>
+      <p class="upload-desc">Téléchargez votre relevé bancaire (PDF ou CSV) et nous extrairons automatiquement les transactions</p>
 
       <div class="compte-selector">
         <label>Compte</label>
@@ -30,16 +30,16 @@
               Veuillez d'abord sélectionner un compte
             </template>
             <template v-else>
-              Glissez-déposez votre relevé PDF ici<br>
+              Glissez-déposez votre relevé PDF ou CSV ici<br>
               ou <span class="click-text">cliquez pour parcourir</span>
             </template>
           </p>
-          <p class="dropzone-hint">Format accepté: PDF uniquement</p>
+          <p class="dropzone-hint">Formats acceptés: PDF, CSV</p>
         </div>
         <input
           ref="fileInput"
           type="file"
-          accept=".pdf,application/pdf"
+          accept=".pdf,.csv,application/pdf,text/csv"
           @change="handleFileSelect"
           style="display: none"
         >
@@ -254,8 +254,12 @@ const handleDrop = (event: DragEvent) => {
 
   const file = event.dataTransfer?.files[0]
   if (file) {
-    if (file.type !== 'application/pdf') {
-      errorMessage.value = 'Le fichier doit être un PDF'
+    const validTypes = ['application/pdf', 'text/csv', 'application/csv', 'text/plain']
+    const validExtensions = ['.pdf', '.csv']
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
+
+    if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
+      errorMessage.value = 'Le fichier doit être un PDF ou un CSV'
       return
     }
     uploadFile(file)
