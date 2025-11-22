@@ -4,6 +4,7 @@ import com.budgetmanager.dto.*;
 import com.budgetmanager.entity.*;
 import com.budgetmanager.entity.TypeTransaction;
 import com.budgetmanager.service.BankStatementParserService;
+import com.budgetmanager.service.CSVBankStatementParserService;
 import com.budgetmanager.service.SalaireValideService;
 import com.budgetmanager.service.TransactionService;
 import com.budgetmanager.service.UserContext;
@@ -41,7 +42,10 @@ public class TransactionResource {
     TransactionService transactionService;
 
     @Inject
-    BankStatementParserService parserService;
+    BankStatementParserService pdfParserService;
+
+    @Inject
+    CSVBankStatementParserService csvParserService;
 
     @Inject
     SalaireValideService salaireValideService;
@@ -294,7 +298,7 @@ public class TransactionResource {
 
     /**
      * POST /api/transactions/upload
-     * Upload un relevé bancaire PDF et retourne les transactions parsées
+     * Upload un relevé bancaire (PDF ou CSV) et retourne les transactions parsées
      */
     @POST
     @Path("/upload")
@@ -313,26 +317,42 @@ public class TransactionResource {
                     .build();
         }
 
-        // Vérifier que le fichier est un PDF
-        if (!file.contentType().equals("application/pdf")) {
+        String contentType = file.contentType();
+        String fileName = file.fileName();
+
+        // Determine file type by content type or extension
+        boolean isPdf = "application/pdf".equals(contentType) ||
+                        (fileName != null && fileName.toLowerCase().endsWith(".pdf"));
+        boolean isCsv = "text/csv".equals(contentType) ||
+                        "application/csv".equals(contentType) ||
+                        "text/plain".equals(contentType) ||
+                        (fileName != null && fileName.toLowerCase().endsWith(".csv"));
+
+        if (!isPdf && !isCsv) {
             return Response.status(400)
-                    .entity(new ErrorResponse("Le fichier doit être un PDF"))
+                    .entity(new ErrorResponse("Le fichier doit être un PDF ou un CSV"))
                     .build();
         }
 
         try {
-            // Parser le PDF
-            File pdfFile = file.filePath().toFile();
-            List<ParsedTransactionDTO> parsedTransactions = parserService.parseBankStatement(pdfFile);
+            File uploadedFile = file.filePath().toFile();
+            List<ParsedTransactionDTO> parsedTransactions;
 
-            LOGGER.infof("Successfully parsed %d transactions from uploaded PDF", parsedTransactions.size());
+            if (isPdf) {
+                parsedTransactions = pdfParserService.parseBankStatement(uploadedFile);
+                LOGGER.infof("Successfully parsed %d transactions from uploaded PDF", parsedTransactions.size());
+            } else {
+                parsedTransactions = csvParserService.parseCSVBankStatement(uploadedFile);
+                LOGGER.infof("Successfully parsed %d transactions from uploaded CSV", parsedTransactions.size());
+            }
 
             return Response.ok(parsedTransactions).build();
 
         } catch (IOException e) {
-            LOGGER.errorf(e, "Error parsing bank statement PDF");
+            String fileType = isPdf ? "PDF" : "CSV";
+            LOGGER.errorf(e, "Error parsing bank statement %s", fileType);
             return Response.status(500)
-                    .entity(new ErrorResponse("Erreur lors de la lecture du fichier PDF: " + e.getMessage()))
+                    .entity(new ErrorResponse("Erreur lors de la lecture du fichier " + fileType + ": " + e.getMessage()))
                     .build();
         }
     }
