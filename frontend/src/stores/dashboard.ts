@@ -9,7 +9,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
   const dashboardData = ref<DashboardData | null>(null)
-  const currentMonth = ref<string>(new Date().toISOString().substring(0, 7)) // YYYY-MM
+  // Use local time for current month (consistent with canGoToNextMonth)
+  const now = new Date()
+  const currentMonth = ref<string>(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`) // YYYY-MM
   const availableMonths = ref<string[]>([]) // Months with transactions
 
   // Computed
@@ -82,13 +84,27 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   const changeMonth = (direction: 'prev' | 'next'): void => {
-    const date = new Date(currentMonth.value + '-01')
+    // Parse current month as year and month numbers to avoid timezone issues
+    const [year, month] = currentMonth.value.split('-').map(Number)
+
+    let newYear = year
+    let newMonth = month
+
     if (direction === 'prev') {
-      date.setMonth(date.getMonth() - 1)
+      newMonth -= 1
+      if (newMonth < 1) {
+        newMonth = 12
+        newYear -= 1
+      }
     } else {
-      date.setMonth(date.getMonth() + 1)
+      newMonth += 1
+      if (newMonth > 12) {
+        newMonth = 1
+        newYear += 1
+      }
     }
-    currentMonth.value = date.toISOString().substring(0, 7)
+
+    currentMonth.value = `${newYear}-${String(newMonth).padStart(2, '0')}`
     loadDashboard()
   }
 
@@ -115,9 +131,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
         // Sort months in descending order (most recent first)
         availableMonths.value = Array.from(monthsSet).sort().reverse()
       } else {
-        // If no transactions, include current month
-        const currentMonth = new Date().toISOString().substring(0, 7)
-        availableMonths.value = [currentMonth]
+        // If no transactions, include current month (use local time)
+        const now = new Date()
+        const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        availableMonths.value = [currentMonthStr]
       }
 
       logger.info('Available months loaded:', availableMonths.value)
