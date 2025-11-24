@@ -35,6 +35,18 @@ import {
   BudgetConfigSchema
 } from '@/utils/validation'
 
+/**
+ * Parsed transaction from bank statement upload
+ */
+export interface ParsedTransaction {
+  date: string
+  description: string
+  montant: number
+  type: string
+  isDebit: boolean
+  rawLine: string
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
 // Configuration axios
@@ -407,6 +419,16 @@ export const apiService = {
     return response.data
   },
 
+  /**
+   * POST /api/charges-fixes/process
+   * Vérifie et traite les charges fixes dues pour le mois en cours.
+   * À appeler au chargement du dashboard.
+   */
+  async processChargesDues(): Promise<{ processed: number; transactions: Transaction[] }> {
+    const response = await apiClient.post<{ processed: number; transactions: Transaction[] }>('/charges-fixes/process')
+    return response.data
+  },
+
   // ===============================================
   // TRANSACTIONS RESOURCE
   // ===============================================
@@ -445,13 +467,14 @@ export const apiService = {
   /**
    * POST /api/transactions/upload
    * Upload bank statement CSV file
+   * Returns parsed transactions directly as an array
    */
-  async uploadBankStatement(file: File, compteId: string): Promise<{ message: string; transactions: Transaction[] }> {
+  async uploadBankStatement(file: File, compteId: string): Promise<ParsedTransaction[]> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('compteId', compteId)
 
-    const response = await apiClient.post<{ message: string; transactions: Transaction[] }>('/transactions/upload', formData, {
+    const response = await apiClient.post<ParsedTransaction[]>('/transactions/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -462,10 +485,17 @@ export const apiService = {
   /**
    * POST /api/transactions/bulk
    * Create multiple transactions at once
+   * Note: compteId at root level, transactions don't need compteId
    */
-  async createBulkTransactions(transactions: Partial<Transaction>[]): Promise<{ message: string; count: number }> {
-    const response = await apiClient.post<{ message: string; count: number }>('/transactions/bulk', {
-      transactions
+  async createBulkTransactions(compteId: string, transactions: Omit<CreateTransactionRequest, 'compteId'>[]): Promise<Transaction[]> {
+    // Add compteId to each transaction as backend expects it in CreateTransactionRequest
+    const transactionsWithCompte = transactions.map(t => ({
+      ...t,
+      compteId
+    }))
+    const response = await apiClient.post<Transaction[]>('/transactions/bulk', {
+      compteId,
+      transactions: transactionsWithCompte
     })
     return response.data
   },

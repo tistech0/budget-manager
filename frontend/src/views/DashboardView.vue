@@ -678,6 +678,17 @@
 
   onMounted(async () => {
     await loadAvailableMonths()
+
+    // Process due charges fixes before loading dashboard
+    try {
+      const result = await apiService.processChargesDues()
+      if (result.processed > 0) {
+        logger.info(`✅ ${result.processed} charge(s) fixe(s) traitée(s) automatiquement`)
+      }
+    } catch (error) {
+      logger.warn('Could not process charges fixes:', error)
+    }
+
     await loadDashboard()
   })
   </script>

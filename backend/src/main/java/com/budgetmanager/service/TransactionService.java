@@ -494,6 +494,167 @@ public class TransactionService {
     }
 
     /**
+     * Vérifie et traite les charges fixes dues pour le cycle budgétaire en cours.
+     * Le cycle va du jour de paie au jour de paie suivant - 1.
+     * Appelé au chargement du dashboard pour s'assurer que les charges sont traitées.
+     *
+     * @param user Utilisateur
+     * @return Liste des transactions créées
+     */
+    public List<Transaction> checkAndProcessDueCharges(User user) {
+        LocalDate today = LocalDate.now();
+        int jourPaie = user.getJourPaie();
+
+        // Calculate budget cycle boundaries based on user's pay day
+        // Cycle runs from jourPaie to jourPaie - 1 of next month
+        LocalDate cycleStart;
+        LocalDate cycleEnd;
+
+        if (today.getDayOfMonth() >= jourPaie) {
+            // We're after pay day this month - cycle is this month's pay day to next month's pay day - 1
+            cycleStart = today.withDayOfMonth(Math.min(jourPaie, today.lengthOfMonth()));
+            cycleEnd = today.plusMonths(1).withDayOfMonth(Math.min(jourPaie - 1, today.plusMonths(1).lengthOfMonth()));
+        } else {
+            // We're before pay day this month - cycle is last month's pay day to this month's pay day - 1
+            cycleStart = today.minusMonths(1).withDayOfMonth(Math.min(jourPaie, today.minusMonths(1).lengthOfMonth()));
+            cycleEnd = today.withDayOfMonth(Math.min(jourPaie - 1, today.lengthOfMonth()));
+        }
+
+        String cycleLabel = cycleStart.getYear() + "-" + String.format("%02d", cycleStart.getMonthValue());
+
+        LOGGER.infof("Checking due charges for user %s - Budget cycle: %s to %s (today: %s)",
+                user.getId(), cycleStart, cycleEnd, today);
+
+        // Find all active charges
+        List<ChargeFixe> chargesFixes = ChargeFixe.find(
+                "user = ?1 and actif = true " +
+                "and dateDebut <= ?2 " +
+                "and (dateFin is null or dateFin >= ?3)",
+                user, cycleEnd, cycleStart
+        ).list();
+
+        LOGGER.infof("Found %d active charges fixes", chargesFixes.size());
+
+        List<Transaction> createdTransactions = new ArrayList<>();
+
+        for (ChargeFixe charge : chargesFixes) {
+            // Calculate the charge date within the current budget cycle
+            LocalDate chargeDate = calculateChargeDateInBudgetCycle(cycleStart, cycleEnd, charge.getJourPrelevement());
+
+            if (chargeDate == null) {
+                LOGGER.infof("Charge %s (day %d) does not fall within cycle %s to %s, skipping",
+                        charge.getNom(), charge.getJourPrelevement(), cycleStart, cycleEnd);
+                continue;
+            }
+
+            // Check if the charge date has passed (or is today)
+            if (!chargeDate.isAfter(today)) {
+                // Check frequency to determine if charge should be processed this cycle
+                if (!shouldProcessChargeThisCycle(charge, cycleStart)) {
+                    LOGGER.infof("Charge %s skipped due to frequency %s",
+                            charge.getNom(), charge.getFrequence());
+                    continue;
+                }
+
+                // Check if a transaction already exists for this charge in this budget cycle
+                long existingCount = Transaction.count(
+                        "user = ?1 and type = ?2 and description like ?3 " +
+                        "and dateTransaction >= ?4 and dateTransaction <= ?5",
+                        user,
+                        charge.getCategorie(),
+                        "%" + charge.getNom() + "%",
+                        cycleStart,
+                        cycleEnd
+                );
+
+                if (existingCount == 0) {
+                    // Create the transaction for the recurring charge
+                    Transaction chargeTransaction = new Transaction();
+                    chargeTransaction.setUser(user);
+                    chargeTransaction.setCompte(charge.getCompte());
+                    chargeTransaction.setMontant(charge.getMontant().negate()); // Negative amount
+                    chargeTransaction.setDescription(charge.getNom() + " - " + cycleLabel);
+                    chargeTransaction.setType(charge.getCategorie());
+                    chargeTransaction.setDateTransaction(chargeDate);
+                    chargeTransaction.persist();
+
+                    // Update account balance
+                    charge.getCompte().setSoldeTotal(
+                            charge.getCompte().getSoldeTotal().add(chargeTransaction.getMontant())
+                    );
+
+                    // Initialize lazy relations
+                    initializeTransactionRelations(chargeTransaction);
+
+                    createdTransactions.add(chargeTransaction);
+
+                    LOGGER.infof("Created charge fixe transaction: %s for %s on %s",
+                            charge.getNom(), chargeTransaction.getMontant(), chargeDate);
+                } else {
+                    LOGGER.infof("Charge fixe %s already processed this cycle, skipping",
+                            charge.getNom());
+                }
+            } else {
+                LOGGER.infof("Charge %s (day %d, date %s) not yet due (today is %s)",
+                        charge.getNom(), charge.getJourPrelevement(), chargeDate, today);
+            }
+        }
+
+        LOGGER.infof("Processed %d new charge transactions", createdTransactions.size());
+        return createdTransactions;
+    }
+
+    /**
+     * Calculate the date when a charge should be applied within a budget cycle.
+     *
+     * @param cycleStart Start of the budget cycle
+     * @param cycleEnd End of the budget cycle
+     * @param jourPrelevement Day of month when the charge is applied (1-31)
+     * @return The charge date if it falls within the cycle, null otherwise
+     */
+    private LocalDate calculateChargeDateInBudgetCycle(LocalDate cycleStart, LocalDate cycleEnd, int jourPrelevement) {
+        // Try the charge day in the cycle start month
+        LocalDate chargeDate = cycleStart.withDayOfMonth(
+                Math.min(jourPrelevement, cycleStart.lengthOfMonth())
+        );
+
+        // If it falls within the cycle, use it
+        if (!chargeDate.isBefore(cycleStart) && !chargeDate.isAfter(cycleEnd)) {
+            return chargeDate;
+        }
+
+        // Otherwise, try the next month
+        LocalDate nextMonth = cycleStart.plusMonths(1);
+        chargeDate = nextMonth.withDayOfMonth(
+                Math.min(jourPrelevement, nextMonth.lengthOfMonth())
+        );
+
+        if (!chargeDate.isBefore(cycleStart) && !chargeDate.isAfter(cycleEnd)) {
+            return chargeDate;
+        }
+
+        // Charge doesn't fall in this cycle
+        return null;
+    }
+
+    /**
+     * Détermine si une charge doit être traitée ce cycle selon sa fréquence.
+     */
+    private boolean shouldProcessChargeThisCycle(ChargeFixe charge, LocalDate cycleStart) {
+        LocalDate dateDebut = charge.getDateDebut();
+        int monthsSinceStart = (cycleStart.getYear() - dateDebut.getYear()) * 12
+                + (cycleStart.getMonthValue() - dateDebut.getMonthValue());
+
+        return switch (charge.getFrequence()) {
+            case MENSUELLE -> true;
+            case BIMESTRIELLE -> monthsSinceStart % 2 == 0;
+            case TRIMESTRIELLE -> monthsSinceStart % 3 == 0;
+            case SEMESTRIELLE -> monthsSinceStart % 6 == 0;
+            case ANNUELLE -> monthsSinceStart % 12 == 0;
+        };
+    }
+
+    /**
      * Vérifie si un type de transaction est un revenu.
      *
      * @param type Le type de transaction

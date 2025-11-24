@@ -21,9 +21,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 8000,
     host: true,
+    allowedHosts: ['.orb.local', 'localhost'],
+    hmr: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        // Use docker service name for container-to-container communication
+        target: process.env.DOCKER_ENV ? 'http://backend:8080' : 'http://localhost:8081',
         changeOrigin: true,
         secure: false
       }

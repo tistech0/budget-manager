@@ -181,7 +181,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { logger } from '@/utils/logger'
-import { apiService } from '@/services/api'
+import { apiService, type ParsedTransaction as ApiParsedTransaction } from '@/services/api'
 import type { TypeTransaction } from '@/types'
 
 interface Compte {
@@ -192,13 +192,7 @@ interface Compte {
   }
 }
 
-interface ParsedTransaction {
-  date: string
-  description: string
-  montant: number
-  type: string
-  isDebit: boolean
-  rawLine: string
+interface ParsedTransaction extends ApiParsedTransaction {
   removed?: boolean
 }
 
@@ -271,14 +265,14 @@ const uploadFile = async (file: File) => {
   uploading.value = true
 
   try {
-    const result = await apiService.uploadBankStatement(file, selectedCompteId.value)
+    const transactions = await apiService.uploadBankStatement(file, selectedCompteId.value)
 
-    parsedTransactions.value = (result.transactions as any as ParsedTransaction[]).map((t: ParsedTransaction) => ({
+    parsedTransactions.value = transactions.map((t) => ({
       ...t,
       removed: false
     }))
 
-    logger.info(`Successfully parsed ${result.transactions.length} transactions`)
+    logger.info(`Successfully parsed ${transactions.length} transactions`)
 
   } catch (error) {
     logger.error('Upload error:', error)
@@ -300,14 +294,13 @@ const validateTransactions = async () => {
 
   try {
     const transactionsToCreate = validTransactions.value.map(t => ({
-      compteId: selectedCompteId.value,
       montant: t.montant,
       description: t.description,
       type: t.type as TypeTransaction,
       dateTransaction: t.date
     }))
 
-    await apiService.createBulkTransactions(transactionsToCreate)
+    await apiService.createBulkTransactions(selectedCompteId.value, transactionsToCreate)
 
     logger.info(`Successfully created ${validTransactions.value.length} transactions`)
     emit('upload-success')
