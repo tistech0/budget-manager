@@ -3,7 +3,6 @@ package com.budgetmanager.dto;
 import com.budgetmanager.entity.TypeTransaction;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,8 +24,7 @@ public class CreateTransactionRequest {
     private UUID objectifId; // Optionnel
 
     @NotNull(message = "Le montant est obligatoire")
-    @Positive(message = "Le montant doit être positif")
-    private BigDecimal montant;
+    private BigDecimal montant; // Can be positive (credit) or negative (debit)
 
     @NotBlank(message = "La description est obligatoire")
     private String description;
