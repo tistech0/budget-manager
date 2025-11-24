@@ -3,9 +3,12 @@ package com.budgetmanager.resource;
 import com.budgetmanager.dto.ChargeFixeResponse;
 import com.budgetmanager.dto.CreateChargeFixeRequest;
 import com.budgetmanager.dto.ErrorResponse;
+import com.budgetmanager.dto.TransactionResponse;
 import com.budgetmanager.entity.ChargeFixe;
 import com.budgetmanager.entity.Compte;
+import com.budgetmanager.entity.Transaction;
 import com.budgetmanager.entity.User;
+import com.budgetmanager.service.TransactionService;
 import com.budgetmanager.service.UserContext;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -14,7 +17,9 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,6 +30,31 @@ public class ChargeFixeResource {
 
     @Inject
     UserContext userContext;
+
+    @Inject
+    TransactionService transactionService;
+
+    /**
+     * POST /api/charges-fixes/process
+     * Vérifie et traite les charges fixes dues pour le mois en cours.
+     * À appeler au chargement du dashboard.
+     */
+    @POST
+    @Path("/process")
+    @Transactional
+    public Response processChargesDues() {
+        User user = userContext.getCurrentUser();
+
+        List<Transaction> createdTransactions = transactionService.checkAndProcessDueCharges(user);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("processed", createdTransactions.size());
+        response.put("transactions", createdTransactions.stream()
+                .map(TransactionResponse::fromEntity)
+                .collect(Collectors.toList()));
+
+        return Response.ok(response).build();
+    }
 
     @GET
     @Transactional  // ⭐ IMPORTANT pour le lazy loading

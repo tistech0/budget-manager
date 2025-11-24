@@ -1,26 +1,22 @@
 <template>
-  <Teleport to="body">
-    <div class="toast-container">
-      <TransitionGroup name="toast">
-        <div
-          v-for="toast in toasts"
-          :key="toast.id"
-          :class="['toast', `toast-${toast.type}`]"
-          @click="remove(toast.id)"
-        >
-          <div class="toast-icon">
-            {{ getIcon(toast.type) }}
-          </div>
-          <div class="toast-message">
-            {{ toast.message }}
-          </div>
-          <button class="toast-close" @click.stop="remove(toast.id)">
-            ✕
-          </button>
-        </div>
-      </TransitionGroup>
+  <div class="toast-container">
+    <div
+      v-for="toast in toasts"
+      :key="toast.id"
+      :class="['toast', `toast-${toast.type}`]"
+      @click="remove(toast.id)"
+    >
+      <div class="toast-icon">
+        {{ getIcon(toast.type) }}
+      </div>
+      <div class="toast-message">
+        {{ toast.message }}
+      </div>
+      <button class="toast-close" @click.stop="remove(toast.id)">
+        ✕
+      </button>
     </div>
-  </Teleport>
+  </div>
 </template>
 
 <script setup lang="ts">

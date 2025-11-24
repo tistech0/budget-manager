@@ -16,14 +16,17 @@ import type {
 /**
  * User Schema
  */
+// Lenient UUID pattern for test data compatibility
+const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
 export const UserSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
   nom: z.string().min(1),
   prenom: z.string().min(1),
   jourPaie: z.number().int().min(1).max(31),
   salaireMensuelNet: z.number().positive(),
-  decouvertAutorise: z.number().optional(),
-  objectifCompteCourant: z.number().positive().optional(),
+  decouvertAutorise: z.number().nullable().optional(),
+  objectifCompteCourant: z.number().positive().nullable().optional(),
   pourcentageChargesFixes: z.number().min(0).max(100).optional(),
   pourcentageDepensesVariables: z.number().min(0).max(100).optional(),
   pourcentageEpargne: z.number().min(0).max(100).optional(),
@@ -35,10 +38,10 @@ export const UserSchema = z.object({
  * Banque Schema
  */
 export const BanqueSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
   nom: z.string().min(1),
   couleurTheme: z.string(),
-  logoUrl: z.string().optional(),
+  logoUrl: z.string().nullable().optional(),
   actif: z.boolean()
 })
 
@@ -46,7 +49,7 @@ export const BanqueSchema = z.object({
  * Compte Schema
  */
 export const CompteSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
   user: UserSchema.optional(),
   banque: BanqueSchema,
   nom: z.string().min(1),
@@ -64,7 +67,7 @@ export const CompteSchema = z.object({
  * ObjectifRepartition Schema
  */
 export const ObjectifRepartitionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
   objectif: z.any().optional(), // Avoid circular reference
   compte: CompteSchema,
   montantActuel: z.number(),
@@ -76,7 +79,7 @@ export const ObjectifRepartitionSchema = z.object({
  * Objectif Schema
  */
 export const ObjectifSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
   user: UserSchema.optional(),
   nom: z.string().min(1),
   montantCible: z.number().positive(),
@@ -95,8 +98,8 @@ export const ObjectifSchema = z.object({
  * ChargeFixe Schema
  */
 export const ChargeFixeSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid().optional(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
+  userId: z.string().regex(uuidPattern, 'Invalid UUID format').optional(),
   compte: CompteSchema,
   nom: z.string().min(1),
   description: z.string().optional(),
@@ -115,8 +118,8 @@ export const ChargeFixeSchema = z.object({
  * BudgetConfig Schema
  */
 export const BudgetConfigSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid(),
+  id: z.string().regex(uuidPattern, 'Invalid UUID format'),
+  userId: z.string().regex(uuidPattern, 'Invalid UUID format'),
   pourcentageChargesFixes: z.number().min(0).max(100),
   pourcentageDepensesVariables: z.number().min(0).max(100),
   pourcentageEpargne: z.number().min(0).max(100),
