@@ -437,9 +437,17 @@ export const apiService = {
    * GET /api/transactions
    * Récupérer toutes les transactions (avec filtres optionnels)
    */
-  async getTransactions(params?: { month?: string; limit?: number }): Promise<Transaction[]> {
+  async getTransactions(params?: {
+    month?: string;
+    dateDebut?: string;
+    dateFin?: string;
+    limit?: number
+  }): Promise<Transaction[]> {
     const queryParams = new URLSearchParams()
-    if (params?.month) queryParams.append('month', params.month)
+    // Prefer dateDebut/dateFin over month for budget cycle support
+    if (params?.dateDebut) queryParams.append('dateDebut', params.dateDebut)
+    if (params?.dateFin) queryParams.append('dateFin', params.dateFin)
+    if (!params?.dateDebut && params?.month) queryParams.append('month', params.month)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
     const url = `/transactions${queryParams.toString() ? '?' + queryParams.toString() : ''}`
     const response = await apiClient.get<Transaction[]>(url)
@@ -609,6 +617,40 @@ export const apiService = {
    */
   async deleteValidatedMonth(month: string): Promise<void> {
     await apiClient.delete(`/dashboard/month/${month}`)
+  },
+
+  /**
+   * GET /api/dashboard/snapshot/{mois}
+   * Récupère le snapshot figé d'un mois précédent
+   */
+  async getMonthSnapshot(mois: string): Promise<MonthSnapshot | null> {
+    try {
+      const response = await apiClient.get<MonthSnapshot>(`/dashboard/snapshot/${mois}`)
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
+  },
+
+  /**
+   * GET /api/dashboard/snapshots
+   * Récupère tous les snapshots de l'utilisateur
+   */
+  async getAllSnapshots(): Promise<MonthSnapshot[]> {
+    const response = await apiClient.get<MonthSnapshot[]>('/dashboard/snapshots')
+    return response.data
+  },
+
+  /**
+   * POST /api/dashboard/snapshot/{mois}/create
+   * Crée ou met à jour manuellement un snapshot pour un mois
+   */
+  async createSnapshot(mois: string): Promise<MonthSnapshot> {
+    const response = await apiClient.post<MonthSnapshot>(`/dashboard/snapshot/${mois}/create`)
+    return response.data
   },
 
   // ===============================================

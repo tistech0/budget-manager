@@ -2,10 +2,12 @@ package com.budgetmanager.resource;
 
 import com.budgetmanager.dto.CompteResponse;
 import com.budgetmanager.dto.DashboardResponse;
+import com.budgetmanager.dto.MonthSnapshotResponse;
 import com.budgetmanager.dto.ObjectifResponse;
 import com.budgetmanager.dto.UserResponse;
 import com.budgetmanager.entity.*;
 import com.budgetmanager.service.CompteService;
+import com.budgetmanager.service.MonthSnapshotService;
 import com.budgetmanager.service.ObjectifService;
 import com.budgetmanager.service.SalaireValideService;
 import com.budgetmanager.service.UserContext;
@@ -42,6 +44,9 @@ public class DashboardResource {
 
     @Inject
     SalaireValideService salaireValideService;
+
+    @Inject
+    MonthSnapshotService monthSnapshotService;
 
     @GET
     @Path("/test")
@@ -201,5 +206,55 @@ public class DashboardResource {
                     ))
                     .build();
         }
+    }
+
+    /**
+     * GET /api/dashboard/snapshot/{mois}
+     * Récupère le snapshot figé d'un mois précédent
+     */
+    @GET
+    @Path("/snapshot/{mois}")
+    public Response getMonthSnapshot(@PathParam("mois") String mois) {
+        User user = userContext.getCurrentUser();
+
+        return monthSnapshotService.getSnapshot(user, mois)
+                .map(snapshot -> Response.ok(MonthSnapshotResponse.fromEntity(snapshot)).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND)
+                        .entity(Map.of("error", "Aucun snapshot trouvé pour ce mois"))
+                        .build());
+    }
+
+    /**
+     * GET /api/dashboard/snapshots
+     * Récupère tous les snapshots de l'utilisateur
+     */
+    @GET
+    @Path("/snapshots")
+    public Response getAllSnapshots() {
+        User user = userContext.getCurrentUser();
+
+        List<MonthSnapshotResponse> snapshots = monthSnapshotService.getAllSnapshots(user)
+                .stream()
+                .map(MonthSnapshotResponse::fromEntity)
+                .collect(Collectors.toList());
+
+        return Response.ok(snapshots).build();
+    }
+
+    /**
+     * POST /api/dashboard/snapshot/{mois}/create
+     * Crée ou met à jour manuellement un snapshot pour un mois donné
+     */
+    @POST
+    @Path("/snapshot/{mois}/create")
+    @Transactional
+    public Response createSnapshot(@PathParam("mois") String mois) {
+        User user = userContext.getCurrentUser();
+
+        MonthSnapshot snapshot = monthSnapshotService.createOrUpdateSnapshot(user, mois);
+
+        return Response.status(Response.Status.CREATED)
+                .entity(MonthSnapshotResponse.fromEntity(snapshot))
+                .build();
     }
 }

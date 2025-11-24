@@ -217,6 +217,33 @@ export interface Transaction {
   createdAt: string
 }
 
+/**
+ * MonthSnapshot - Snapshot figé des données d'un mois
+ */
+export interface MonthSnapshot {
+  id: string
+  month: string
+  cycleStart: string
+  cycleEnd: string
+  totalRevenus: number
+  totalChargesFixes: number
+  totalDepensesVariables: number
+  totalEpargne: number
+  soldeCompteCourant: number
+  budgetChargesFixes?: number
+  budgetDepensesVariables?: number
+  salaireMensuel?: number
+  nombreTransactions: number
+  nombreChargesFixes: number
+  nombreDepensesVariables: number
+  createdAt: string
+  // Calculated fields
+  resteChargesFixes?: number
+  resteDepensesVariables?: number
+  pourcentageChargesFixes?: number
+  pourcentageDepensesVariables?: number
+}
+
 // ===============================================
 // REQUEST BODIES (CreateXxxRequest)
 // ===============================================

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiService } from '@/services/api'
-import type { DashboardData, User, Compte, Objectif, ChargeFixe, Transaction } from '@/types'
+import type { DashboardData, User, Compte, Objectif, ChargeFixe, Transaction, MonthSnapshot } from '@/types'
 import { logger } from '@/utils/logger'
 
 export const useDashboardStore = defineStore('dashboard', () => {
@@ -9,6 +9,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
   const dashboardData = ref<DashboardData | null>(null)
+  const monthSnapshot = ref<MonthSnapshot | null>(null) // Snapshot for past months
   // Use local time for current month (consistent with canGoToNextMonth)
   const now = new Date()
   const currentMonth = ref<string>(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`) // YYYY-MM
@@ -57,16 +58,70 @@ export const useDashboardStore = defineStore('dashboard', () => {
     return currentMonth.value !== currentYearMonth
   })
 
+  // Helper to calculate budget cycle dates based on jourPaie
+  const calculateBudgetCycleDates = (jourPaie: number, targetMonth: string): { dateDebut: string; dateFin: string } => {
+    const [year, month] = targetMonth.split('-').map(Number)
+    const today = new Date()
+
+    // Create date objects for the target month
+    const targetDate = new Date(year, month - 1, 15) // Middle of target month
+
+    let cycleStart: Date
+    let cycleEnd: Date
+
+    // Budget cycle runs from jourPaie of one month to jourPaie-1 of the next
+    if (targetDate.getDate() >= jourPaie || targetDate.getMonth() === today.getMonth()) {
+      // Cycle starts this month
+      cycleStart = new Date(year, month - 1, jourPaie)
+      cycleEnd = new Date(year, month, jourPaie - 1)
+    } else {
+      // Cycle started last month
+      cycleStart = new Date(year, month - 2, jourPaie)
+      cycleEnd = new Date(year, month - 1, jourPaie - 1)
+    }
+
+    return {
+      dateDebut: cycleStart.toISOString().split('T')[0],
+      dateFin: cycleEnd.toISOString().split('T')[0]
+    }
+  }
+
+  // Check if viewing a past month (not current)
+  const isViewingPastMonth = computed<boolean>(() => {
+    const now = new Date()
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    return currentMonth.value !== currentYearMonth
+  })
+
   // Actions
   const loadDashboard = async (): Promise<void> => {
     try {
       loading.value = true
       error.value = null
-      const [dashboard, charges, transactionsData] = await Promise.all([
+      monthSnapshot.value = null // Reset snapshot
+
+      // First, get dashboard to retrieve user info (including jourPaie)
+      const [dashboard, charges] = await Promise.all([
         apiService.getDashboard(currentMonth.value),
-        apiService.getChargesFixes(),
-        apiService.getTransactions({ month: currentMonth.value })
+        apiService.getChargesFixes()
       ])
+
+      // Calculate budget cycle dates based on user's jourPaie
+      const jourPaie = dashboard.user?.jourPaie || 1
+      const { dateDebut, dateFin } = calculateBudgetCycleDates(jourPaie, currentMonth.value)
+
+      logger.info(`Loading transactions for budget cycle: ${dateDebut} to ${dateFin}`)
+
+      // Try to fetch snapshot for this month (available for past months)
+      const snapshot = await apiService.getMonthSnapshot(currentMonth.value)
+      if (snapshot) {
+        monthSnapshot.value = snapshot
+        logger.info(`Snapshot found for ${currentMonth.value}:`, snapshot)
+      }
+
+      // Now fetch transactions for the budget cycle
+      const transactionsData = await apiService.getTransactions({ dateDebut, dateFin })
+
       dashboardData.value = {
         ...dashboard,
         chargesFixes: charges,
@@ -149,8 +204,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     loading,
     error,
     dashboardData,
+    monthSnapshot,
     currentMonth,
     availableMonths,
+    isViewingPastMonth,
 
     // Computed
     user,

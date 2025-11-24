@@ -221,6 +221,81 @@
             </div>
           </section>
 
+          <!-- Month Snapshots Section -->
+          <section class="form-section glass-card">
+            <div class="section-header">
+              <h2 class="section-title">📸 Snapshots Mensuels</h2>
+            </div>
+
+            <p class="section-description">
+              Les snapshots figent l'état financier d'un mois. Ils sont automatiquement créés lors de la validation d'un nouveau salaire, mais vous pouvez aussi les créer manuellement.
+            </p>
+
+            <!-- Create Snapshot Form -->
+            <div class="snapshot-create-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Mois du snapshot</label>
+                  <input
+                    v-model="selectedSnapshotMonth"
+                    type="month"
+                    class="form-input"
+                    :max="getCurrentMonth()"
+                  />
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-end;">
+                  <button
+                    @click="createManualSnapshot"
+                    class="btn btn-primary"
+                    :disabled="creatingSnapshot || !selectedSnapshotMonth"
+                  >
+                    <span v-if="creatingSnapshot">Création...</span>
+                    <span v-else>📸 Créer Snapshot</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Existing Snapshots List -->
+            <div v-if="loadingSnapshots" class="loading-container">
+              <div class="loading-spinner-small"></div>
+              <p>Chargement des snapshots...</p>
+            </div>
+
+            <div v-else-if="snapshots.length === 0" class="empty-charges">
+              <span class="empty-icon">📸</span>
+              <p>Aucun snapshot créé pour le moment</p>
+            </div>
+
+            <div v-else class="snapshots-list">
+              <div v-for="snapshot in snapshots" :key="snapshot.id" class="snapshot-item">
+                <div class="snapshot-info">
+                  <div class="snapshot-icon">📅</div>
+                  <div class="snapshot-details">
+                    <h4 class="snapshot-month">{{ formatSnapshotMonth(snapshot.month) }}</h4>
+                    <p class="snapshot-meta">
+                      Créé le {{ formatDate(snapshot.createdAt) }} • {{ snapshot.nombreTransactions }} transactions
+                    </p>
+                  </div>
+                </div>
+                <div class="snapshot-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Revenus</span>
+                    <span class="stat-value positive">{{ formatCurrency(snapshot.totalRevenus) }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Dépenses</span>
+                    <span class="stat-value negative">{{ formatCurrency(snapshot.totalChargesFixes + snapshot.totalDepensesVariables) }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Épargne</span>
+                    <span class="stat-value">{{ formatCurrency(snapshot.totalEpargne) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- Form Actions -->
           <div class="form-actions">
             <button @click="handleCancel" class="btn btn-secondary" :disabled="saving">
@@ -326,7 +401,7 @@ import { logger } from '@/utils/logger'
 import { useToast } from '@/composables/useToast'
 import { useValidation } from '@/composables/useValidation'
 import { UserProfileFormSchema } from '@/utils/form-validation'
-import type { ChargeFixe, TypeTransaction, FrequenceCharge, CreateChargeFixeRequest } from '@/types'
+import type { ChargeFixe, TypeTransaction, FrequenceCharge, CreateChargeFixeRequest, MonthSnapshot } from '@/types'
 
 const router = useRouter()
 const dashboardStore = useDashboardStore()
@@ -334,6 +409,12 @@ const { user, comptes, chargesFixes } = storeToRefs(dashboardStore)
 const { loadDashboard } = dashboardStore
 const toast = useToast()
 const validation = useValidation(UserProfileFormSchema)
+
+// Snapshots state
+const snapshots = ref<MonthSnapshot[]>([])
+const loadingSnapshots = ref(false)
+const creatingSnapshot = ref(false)
+const selectedSnapshotMonth = ref('')
 
 // Form state
 interface ProfileFormData {
@@ -539,6 +620,7 @@ onBeforeRouteLeave((to, from, next) => {
 // Lifecycle
 onMounted(async () => {
   await loadUserProfile()
+  await loadSnapshots()
 })
 
 // Warn on page unload if unsaved changes
@@ -556,6 +638,74 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnloadHandler)
 })
+
+// ============================================
+// Snapshots Management
+// ============================================
+
+const loadSnapshots = async () => {
+  try {
+    loadingSnapshots.value = true
+    const snapshotsData = await apiService.getAllSnapshots()
+    // Sort by month descending (most recent first)
+    snapshots.value = snapshotsData.sort((a, b) => b.month.localeCompare(a.month))
+    logger.info('Snapshots loaded:', snapshots.value.length)
+  } catch (error) {
+    logger.error('Failed to load snapshots:', error)
+    toast.error('Erreur lors du chargement des snapshots')
+  } finally {
+    loadingSnapshots.value = false
+  }
+}
+
+const createManualSnapshot = async () => {
+  if (!selectedSnapshotMonth.value) {
+    toast.error('Veuillez sélectionner un mois')
+    return
+  }
+
+  try {
+    creatingSnapshot.value = true
+    const snapshot = await apiService.createSnapshot(selectedSnapshotMonth.value)
+    toast.success(`Snapshot créé pour ${formatSnapshotMonth(selectedSnapshotMonth.value)}`)
+    logger.info('Snapshot created:', snapshot)
+
+    // Reload snapshots to show the new one
+    await loadSnapshots()
+
+    // Reset selection
+    selectedSnapshotMonth.value = ''
+  } catch (error: any) {
+    logger.error('Failed to create snapshot:', error)
+    toast.error(error.response?.data?.error || 'Erreur lors de la création du snapshot')
+  } finally {
+    creatingSnapshot.value = false
+  }
+}
+
+const formatSnapshotMonth = (month: string): string => {
+  const date = new Date(month + '-01')
+  return date.toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long'
+  })
+}
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+const getCurrentMonth = (): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
 
 // ============================================
 // Charges Fixes Management
@@ -1383,6 +1533,139 @@ const closeChargeModal = () => {
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Snapshots Section */
+.section-description {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.snapshot-create-form {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.snapshots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.snapshot-item {
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
+}
+
+.snapshot-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.snapshot-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.snapshot-icon {
+  font-size: 1.5rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 10px;
+}
+
+.snapshot-details {
+  flex: 1;
+}
+
+.snapshot-month {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #E8EAF6;
+  margin: 0 0 0.25rem 0;
+}
+
+.snapshot-meta {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.snapshot-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #E8EAF6;
+}
+
+.stat-value.positive {
+  color: #4CAF50;
+}
+
+.stat-value.negative {
+  color: #F56565;
+}
+
+.loading-spinner-small {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #667EEA;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@media (max-width: 640px) {
+  .snapshot-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .snapshot-create-form .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .snapshot-create-form .form-group[style] {
+    align-items: stretch !important;
+  }
+
+  .snapshot-create-form .btn {
+    width: 100%;
   }
 }
 </style>

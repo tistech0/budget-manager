@@ -450,8 +450,15 @@
   })
 
 
-  // Jauge 1: Compte Courant - Sum all COMPTE_COURANT accounts
+  // Use snapshot data when available (for past months)
+  const snapshot = computed(() => dashboardStore.monthSnapshot)
+  const hasSnapshot = computed(() => snapshot.value !== null)
+
+  // Jauge 1: Compte Courant - Sum all COMPTE_COURANT accounts (or use snapshot)
   const soldeCompteCourant = computed(() => {
+    if (hasSnapshot.value && snapshot.value) {
+      return snapshot.value.soldeCompteCourant
+    }
     const comptescourants = comptes.value.filter(c => c.type === 'COMPTE_COURANT')
     return comptescourants.reduce((total, compte) => total + (compte.soldeTotal || 0), 0)
   })
@@ -511,8 +518,12 @@
     })
   })
 
-  // Jauges 2 & 3: Charges et Dépenses (budgets calculés)
+  // Jauges 2 & 3: Charges et Dépenses (budgets calculés or from snapshot)
   const budgetChargesFixes = computed(() => {
+    // Use snapshot budget if available
+    if (hasSnapshot.value && snapshot.value?.budgetChargesFixes) {
+      return snapshot.value.budgetChargesFixes
+    }
     const pourcentage = (user.value?.pourcentageChargesFixes || 50) / 100
     return (user.value?.salaireMensuelNet || 0) * pourcentage
   })
@@ -531,6 +542,10 @@
   })
 
   const totalChargesFixesPaid = computed(() => {
+    // Use snapshot if available
+    if (hasSnapshot.value && snapshot.value) {
+      return snapshot.value.totalChargesFixes
+    }
     return Math.abs(chargesFixesTransactions.value.reduce((total: number, t: any) => total + t.montant, 0))
   })
 
@@ -575,6 +590,10 @@
   })
 
   const budgetDepensesVariables = computed(() => {
+    // Use snapshot budget if available
+    if (hasSnapshot.value && snapshot.value?.budgetDepensesVariables) {
+      return snapshot.value.budgetDepensesVariables
+    }
     const pourcentage = (user.value?.pourcentageDepensesVariables || 30) / 100
     return (user.value?.salaireMensuelNet || 0) * pourcentage
   })
@@ -594,6 +613,10 @@
   })
 
   const totalDepensesVariables = computed(() => {
+    // Use snapshot if available
+    if (hasSnapshot.value && snapshot.value) {
+      return snapshot.value.totalDepensesVariables
+    }
     return Math.abs(depensesVariablesTransactions.value.reduce((total: number, t: any) => total + t.montant, 0))
   })
 

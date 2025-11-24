@@ -5,6 +5,7 @@ import com.budgetmanager.entity.*;
 import com.budgetmanager.entity.TypeTransaction;
 import com.budgetmanager.service.BankStatementParserService;
 import com.budgetmanager.service.CSVBankStatementParserService;
+import com.budgetmanager.service.MonthSnapshotService;
 import com.budgetmanager.service.SalaireValideService;
 import com.budgetmanager.service.TransactionService;
 import com.budgetmanager.service.UserContext;
@@ -49,6 +50,9 @@ public class TransactionResource {
 
     @Inject
     SalaireValideService salaireValideService;
+
+    @Inject
+    MonthSnapshotService monthSnapshotService;
 
     /**
      * GET /api/transactions
@@ -171,6 +175,7 @@ public class TransactionResource {
     /**
      * POST /api/transactions/salaire
      * Valider le salaire mensuel ou autres revenus (action rapide)
+     * Crée également un snapshot du mois précédent pour figer les données
      */
     @POST
     @Path("/salaire")
@@ -179,6 +184,11 @@ public class TransactionResource {
         User user = userContext.getCurrentUser();
 
         try {
+            // Create snapshot of the previous month before validating new salary
+            String previousMonth = monthSnapshotService.getPreviousMonth(request.getMois());
+            LOGGER.infof("Creating snapshot for previous month: %s", previousMonth);
+            monthSnapshotService.createOrUpdateSnapshot(user, previousMonth);
+
             Transaction transaction = transactionService.validerSalaire(
                     user,
                     request.getCompteId(),
