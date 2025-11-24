@@ -475,38 +475,90 @@
     return `Découvert: ${formatCurrency(Math.abs(soldeCompteCourant.value))}`
   })
   
-  // Jauges 2 & 3: Charges et Dépenses (budgets calculés, dépenses à venir)
+  // Budget cycle calculation based on user's jourPaie
+  const budgetCycle = computed(() => {
+    const jourPaie = user.value?.jourPaie || 1
+    const today = new Date()
+    const currentDay = today.getDate()
+    const currentMonth = today.getMonth()
+    const currentYear = today.getFullYear()
+
+    let cycleStart: Date
+    let cycleEnd: Date
+
+    if (currentDay >= jourPaie) {
+      // We're after pay day - cycle is this month's pay day to next month's pay day - 1
+      cycleStart = new Date(currentYear, currentMonth, jourPaie)
+      const nextMonth = new Date(currentYear, currentMonth + 1, jourPaie - 1)
+      cycleEnd = nextMonth
+    } else {
+      // We're before pay day - cycle is last month's pay day to this month's pay day - 1
+      cycleStart = new Date(currentYear, currentMonth - 1, jourPaie)
+      cycleEnd = new Date(currentYear, currentMonth, jourPaie - 1)
+    }
+
+    return { start: cycleStart, end: cycleEnd }
+  })
+
+  // Filter transactions within current budget cycle
+  const transactionsInCycle = computed(() => {
+    if (!transactions.value) return []
+    const { start, end } = budgetCycle.value
+
+    return transactions.value.filter((t: any) => {
+      const transactionDate = new Date(t.dateTransaction)
+      return transactionDate >= start && transactionDate <= end
+    })
+  })
+
+  // Jauges 2 & 3: Charges et Dépenses (budgets calculés)
   const budgetChargesFixes = computed(() => {
     const pourcentage = (user.value?.pourcentageChargesFixes || 50) / 100
     return (user.value?.salaireMensuelNet || 0) * pourcentage
   })
 
-  // Charges fixes for the current month
-  const chargesFixesThisMonth = computed(() => {
-    if (!chargesFixes.value) return []
+  // Fixed charge types
+  const FIXED_CHARGE_TYPES = [
+    'LOYER', 'ASSURANCE', 'ABONNEMENT', 'CREDIT_IMMOBILIER',
+    'CREDIT_CONSO', 'IMPOTS', 'MUTUELLE', 'FRAIS_BANCAIRE'
+  ]
 
-    const currentDate = new Date()
-    const currentDay = currentDate.getDate()
-
-    return chargesFixes.value.map((charge: any) => {
-      const isPaid = currentDay >= charge.jourPrelevement
-      return {
-        ...charge,
-        isPaid
-      }
-    })
+  // Charges fixes from actual transactions in current budget cycle
+  const chargesFixesTransactions = computed(() => {
+    return transactionsInCycle.value.filter((t: any) =>
+      FIXED_CHARGE_TYPES.includes(t.type) && t.montant < 0
+    )
   })
 
-  const chargesFixesPaid = computed(() => {
-    return chargesFixesThisMonth.value.filter((c: any) => c.isPaid)
+  const totalChargesFixesPaid = computed(() => {
+    return Math.abs(chargesFixesTransactions.value.reduce((total: number, t: any) => total + t.montant, 0))
+  })
+
+  // Charges fixes for the upcoming list (using configured charges)
+  const chargesFixesThisMonth = computed(() => {
+    if (!chargesFixes.value) return []
+    const today = new Date()
+    const currentDay = today.getDate()
+    const jourPaie = user.value?.jourPaie || 1
+
+    return chargesFixes.value.map((charge: any) => {
+      // Check if charge is paid based on budget cycle, not calendar
+      let isPaid = false
+      if (currentDay >= jourPaie) {
+        // After pay day: charge is paid if jourPrelevement is between jourPaie and today
+        // OR if jourPrelevement is in next month part of cycle (1 to jourPaie-1) and we're past that
+        isPaid = (charge.jourPrelevement >= jourPaie && charge.jourPrelevement <= currentDay) ||
+                 (charge.jourPrelevement < jourPaie && currentDay >= jourPaie)
+      } else {
+        // Before pay day: we're in previous cycle, charge is paid if jourPrelevement passed
+        isPaid = charge.jourPrelevement < jourPaie && charge.jourPrelevement <= currentDay
+      }
+      return { ...charge, isPaid }
+    })
   })
 
   const chargesFixesUpcoming = computed(() => {
     return chargesFixesThisMonth.value.filter((c: any) => !c.isPaid)
-  })
-
-  const totalChargesFixesPaid = computed(() => {
-    return chargesFixesPaid.value.reduce((total: number, charge: any) => total + charge.montant, 0)
   })
 
   const pourcentageChargesFixes = computed(() => {
@@ -516,12 +568,10 @@
   })
 
   const descriptionChargesFixes = computed(() => {
-    if (chargesFixesThisMonth.value.length === 0) {
-      return 'À configurer'
+    if (chargesFixesTransactions.value.length === 0) {
+      return 'Aucune charge payée'
     }
-    const paid = chargesFixesPaid.value.length
-    const total = chargesFixesThisMonth.value.length
-    return `${paid}/${total} payées - ${formatCurrency(totalChargesFixesPaid.value)} / ${formatCurrency(budgetChargesFixes.value)}`
+    return `${chargesFixesTransactions.value.length} charge(s) - ${formatCurrency(totalChargesFixesPaid.value)} / ${formatCurrency(budgetChargesFixes.value)}`
   })
 
   const budgetDepensesVariables = computed(() => {
@@ -536,10 +586,9 @@
     'EDUCATION', 'VOYAGE'
   ]
 
-  // Dépenses variables for the current month
+  // Dépenses variables from actual transactions in current budget cycle
   const depensesVariablesTransactions = computed(() => {
-    if (!transactions.value) return []
-    return transactions.value.filter((t: any) =>
+    return transactionsInCycle.value.filter((t: any) =>
       VARIABLE_EXPENSE_TYPES.includes(t.type) && t.montant < 0
     )
   })
